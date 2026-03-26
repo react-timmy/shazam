@@ -1,0 +1,71 @@
+/* LightningButton — primary blue CTA for the analyze action */
+
+.lbtn {
+  position: relative;
+  display: inline-flex; align-items:center; justify-content:center;
+  overflow: visible;
+  background: var(--blue);
+  color: white;
+  font-family: var(--font-ui);
+  font-size: 15px; font-weight: 600;
+  letter-spacing: -0.01em;
+  padding: 12px 28px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  z-index: 0;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 0 20px var(--blue-glow), 0 2px 8px rgba(79,142,247,0.25);
+  animation: btn-glow-pulse 3s ease infinite;
+}
+
+.lbtn:hover:not(.lbtn--disabled):not(.lbtn--loading) {
+  background: var(--blue-2);
+  transform: translateY(-1px);
+  box-shadow: 0 0 28px rgba(79,142,247,0.3), 0 4px 16px rgba(79,142,247,0.35);
+}
+
+.lbtn:active:not(.lbtn--disabled):not(.lbtn--loading) {
+  transform: translateY(1px) scale(0.99);
+}
+
+.lbtn--disabled, .lbtn--loading {
+  opacity: 0.55; cursor:not-allowed; animation:none;
+}
+
+.lbtn__inner {
+  position:relative; z-index:1;
+  display:flex; align-items:center; gap:8px;
+  pointer-events:none;
+}
+
+.lbtn__icon { flex-shrink:0; }
+
+/* Subtle shimmer */
+.lbtn__shimmer {
+  position:absolute; inset:-1px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.12) 50%,transparent 100%);
+  background-size:250% 100%;
+  animation: electric-border 2.5s linear infinite;
+  pointer-events:none;
+  mix-blend-mode:overlay;
+}
+
+/* Particle bolts */
+.lbtn__bolt {
+  position:absolute; top:50%; left:50%;
+  pointer-events:none; z-index:10;
+  animation: btn-lightning-shoot 0.6s cubic-bezier(0.2,0,0.8,1) forwards;
+  filter: drop-shadow(0 0 4px var(--blue)) drop-shadow(0 0 8px var(--blue-glow));
+}
+
+.lbtn__spinner {
+  width:16px; height:16px;
+  border:2px solid rgba(255,255,255,0.2);
+  border-top-color:white;
+  border-radius:50%;
+  animation:spin 0.7s linear infinite;
+  flex-shrink:0;
+}

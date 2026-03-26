@@ -1,0 +1,43 @@
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.logo__icon {
+  width: 30px;
+  height: 30px;
+  background: var(--blue);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(0, 123, 255, 0.5);
+  transition: box-shadow 0.2s;
+}
+.logo:hover .logo__icon {
+  box-shadow: 0 0 20px rgba(0, 123, 255, 0.5);
+}
+
+.logo__zap {
+  width: 16px;
+  height: 16px;
+  color: white;
+  fill: white;
+  stroke: white;
+  stroke-width: 2.5;
+}
+
+.logo__text {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: white;
+  line-height: 1;
+}

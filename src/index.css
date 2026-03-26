@@ -1,0 +1,157 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* ── Core palette ── */
+  --bg:             #05050A;
+  --surface:        #0D0D15;
+  --surface-2:      #111119;
+  --surface-3:      #16161F;
+  --card-bg:        #0D0D15;
+
+  /* ── Borders ── */
+  --border:         rgba(255, 255, 255, 0.08);
+  --border-2:       rgba(255, 255, 255, 0.14);
+  --border-blue:    rgba(79, 142, 247, 0.25);
+
+  /* ── Accent colours ── */
+  --blue:           #4F8EF7;
+  --blue-2:         #6BA3F9;
+  --blue-dim:       rgba(79, 142, 247, 0.12);
+  --blue-glow:      rgba(79, 142, 247, 0.15);
+  --blue-deep:      #060C1F;
+
+  --orange:         #FF5C00;
+  --orange-2:       #FF7A30;
+  --orange-dim:     rgba(255, 92, 0, 0.10);
+  --orange-glow:    rgba(255, 92, 0, 0.35);
+
+  /* ── Status ── */
+  --success:        #10B981;
+  --success-dim:    rgba(16, 185, 129, 0.10);
+  --success-border: rgba(16, 185, 129, 0.22);
+  --error:          #F87171;
+  --error-dim:      rgba(248, 113, 113, 0.08);
+  --error-border:   rgba(248, 113, 113, 0.20);
+
+  /* ── Kept for lightning overlay (intro animation) ── */
+  --lightning:      #FFE500;
+  --lightning-glow: rgba(255, 229, 0, 0.45);
+
+  /* ── Text ── */
+  --text-primary:   #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --text-muted:     #52525B;
+
+  /* ── Typography ── */
+  --font-ui:   'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* ── Radii ── */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  20px;
+
+  /* ── Layout ── */
+  --sidebar-width: 240px;
+  --topbar-height: 58px;
+  --page-px:       52px;
+
+  /* ── Aliases for backward compat ── */
+  --black:          #05050A;
+  --black-2:        #08080F;
+  --black-3:        #0D0D15;
+  --blue-electric:  #4F8EF7;
+  --blue-mid:       #060C1F;
+  --blue-bright:    #1D4ED8;
+  --border-orange:  rgba(255, 92, 0, 0.28);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  cursor: pointer;
+  font-family: var(--font-ui);
+  border: none;
+  outline: none;
+  background: none;
+}
+
+input, textarea, select {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  outline: none;
+  color: inherit;
+}
+
+select { cursor: pointer; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }
+
+/* ── Keyframes ── */
+@keyframes fadeUp  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+@keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+@keyframes spin    { to{transform:rotate(360deg)} }
+@keyframes float   { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+
+@keyframes blue-pulse { 0%,100%{opacity:0.4} 50%{opacity:0.8} }
+
+@keyframes btn-glow-pulse {
+  0%,100%{ box-shadow: 0 0 0 0 var(--blue-glow), 0 2px 12px rgba(79,142,247,0.2); }
+  50%    { box-shadow: 0 0 0 4px rgba(79,142,247,0), 0 2px 24px rgba(79,142,247,0.35); }
+}
+
+/* kept for lightning overlay */
+@keyframes lightning-overlay {
+  0%{opacity:0} 4%{opacity:1;background:rgba(255,229,0,0.1)} 8%{opacity:0.1}
+  13%{opacity:0.8} 20%{opacity:0} 100%{opacity:0}
+}
+@keyframes bolt-main {
+  0%{opacity:0;transform:scaleY(0);transform-origin:top center}
+  5%{opacity:1;transform:scaleY(1)} 75%{opacity:1} 100%{opacity:0}
+}
+@keyframes bolt-glow-pulse {
+  0%,100%{filter:drop-shadow(0 0 8px var(--lightning)) drop-shadow(0 0 20px var(--lightning-glow))}
+  50%    {filter:drop-shadow(0 0 16px var(--lightning)) drop-shadow(0 0 40px var(--lightning-glow))}
+}
+@keyframes logo-slam {
+  0%  {opacity:0;transform:scale(3.5) translateY(-18px);filter:blur(10px) brightness(4)}
+  40% {opacity:1;transform:scale(1.04) translateY(0);filter:blur(0) brightness(2)}
+  65% {transform:scale(0.98)}
+  100%{opacity:1;transform:scale(1);filter:brightness(1)}
+}
+@keyframes electric-border {
+  0%  {background-position:200% 0}
+  100%{background-position:-200% 0}
+}
+@keyframes electric-hum { 0%,100%{opacity:0.5} 50%{opacity:1} }
+@keyframes btn-lightning-shoot {
+  0%  {opacity:1;transform:translate(-50%,-50%) scale(1.2)}
+  100%{opacity:0;transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) scale(0.3)}
+}
+@keyframes orange-pulse {
+  0%,100%{box-shadow:0 0 0 0 var(--orange-glow),0 2px 12px rgba(255,92,0,0.2)}
+  50%    {box-shadow:0 0 0 4px rgba(255,92,0,0),0 2px 24px rgba(255,92,0,0.4)}
+}
+
+.anim-fade-up { animation: fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+.anim-fade-in { animation: fadeIn 0.3s ease both; }
