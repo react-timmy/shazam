@@ -1,16 +1,75 @@
-# React + Vite
+# SHAZAM
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**AI Design Intelligence — upload any design, get a blueprint back.**
 
-Currently, two official plugins are available:
+SHAZAM takes any design you upload and generates a complete blueprint of it — a breakdown of its layout, components, and structure — from a single prompt. No manual teardown, no guesswork. Point it at a design, and it tells you how it's built.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ✨ Features
 
-## React Compiler
+- **One-prompt analysis** — upload a design and get a full blueprint instantly
+- **Structural breakdown** — layout, components, and hierarchy extracted automatically
+- **AI-powered** — built on AI design intelligence to interpret visual structure, not just pixels
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 Getting Started
 
-## Expanding the ESLint configuration
+### Prerequisites
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Node.js (v18+ recommended)
+- npm or yarn
+
+### Installation
+
+```bash
+git clone https://github.com/<your-username>/shazam.git
+cd shazam
+npm install
+```
+
+### Running locally
+
+```bash
+npm run dev
+```
+
+The app will be available at `http://localhost:5173` by default.
+
+## 🛠️ Tech Stack
+
+- **React** + **Vite** (using `@vitejs/plugin-react-swc` for fast refresh via SWC)
+- ESLint for code quality
+- *(Add your AI/model provider, backend, and any other key dependencies here)*
+
+## 📁 Project Structure
+
+```
+shazam/
+├── src/
+│   ├── components/
+│   ├── ...
+├── public/
+├── README.md
+└── package.json
+```
+*(Update this to reflect your actual folder layout)*
+
+## 🧭 How It Works
+
+1. Upload a design (image or file)
+2. SHAZAM analyzes it with a single AI prompt
+3. Get back a structured blueprint of the design's layout and components
+
+## 🗺️ Roadmap
+
+- [ ] *(Add planned features here)*
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome. Feel free to check the [issues page](https://github.com/<your-username>/shazam/issues).
+
+## 📄 License
+
+*(Add your license here — e.g. MIT)*
+
+---
+
+Built by [Sustain](https://github.com/<your-username>)
