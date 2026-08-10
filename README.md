@@ -60,16 +60,14 @@ shazam/
 
 ## 🗺️ Roadmap
 
-- [ ] *(Add planned features here)*
+- soon
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome. Feel free to check the [issues page](https://github.com/<your-username>/shazam/issues).
+Contributions, issues, and feature requests are welcome.
 
 ## 📄 License
 
-*(Add your license here — e.g. MIT)*
-
 ---
 
-Built by [Sustain](https://github.com/<your-username>)
+Built by [Cole Timmy](https://x.com/_devTimmy)
