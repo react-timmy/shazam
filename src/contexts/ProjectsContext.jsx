@@ -8,7 +8,7 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 export function ProjectsProvider({ children }) {
   const { user } = useAuth()
   const [projects,   setProjects]   = useState([])
-  const [usageCount, setUsageCount] = useState(0)
+  const [usage, setUsage] = useState({ count: 0, limit: 20, remaining: 20 })
 
   const fetchProjects = useCallback(async () => {
     if (!user) { setProjects([]); return }
@@ -20,15 +20,17 @@ export function ProjectsProvider({ children }) {
   }, [user])
 
   const fetchUsage = useCallback(async () => {
-    if (!user) { setUsageCount(0); return }
+    if (!user) { setUsage({ count: 0, limit: 20, remaining: 20 }); return }
     try {
       const res  = await fetch(`${API_BASE}/api/usage`, { credentials: 'include' })
       const data = await res.json()
-      setUsageCount(data.count || 0)
-    } catch { setUsageCount(0) }
+      setUsage({ count: data.count || 0, limit: data.limit || 20, remaining: data.remaining ?? 20, resetsAt: data.resetsAt })
+    } catch { setUsage({ count: 0, limit: 20, remaining: 20 }) }
   }, [user])
 
   useEffect(() => {
+    // These requests synchronize context state with the authenticated API session.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchProjects()
     fetchUsage()
   }, [fetchProjects, fetchUsage])
@@ -43,7 +45,6 @@ export function ProjectsProvider({ children }) {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Failed to create project')
     setProjects(prev => [data.project, ...prev])
-    await trackUsage()
     return data.project
   }
 
@@ -76,23 +77,13 @@ export function ProjectsProvider({ children }) {
 
   const getProject = (id) => projects.find(p => p._id === id || p.id === id) || null
 
-  const trackUsage = async () => {
-    try {
-      const res  = await fetch(`${API_BASE}/api/usage/track`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-      const data = await res.json()
-      setUsageCount(data.count || 0)
-    } catch {}
-  }
-
-  const getUsageThisMonth = () => usageCount
+  const getUsageToday = () => usage.count
+  const getUsageRemaining = () => usage.remaining
 
   return (
     <ProjectsContext.Provider value={{
       projects, addProject, updateProject, deleteProject,
-      getProject, trackUsage, getUsageThisMonth,
+      getProject, getUsageToday, getUsageRemaining, refreshUsage: fetchUsage,
       refreshProjects: fetchProjects,
     }}>
       {children}

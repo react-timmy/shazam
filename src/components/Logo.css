@@ -9,17 +9,17 @@
 .logo__icon {
   width: 30px;
   height: 30px;
-  background: var(--blue);
+  background: linear-gradient(145deg, #ff9369, #ff5b26 72%);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 0 12px rgba(0, 123, 255, 0.5);
+  box-shadow: 0 5px 18px rgba(255, 91, 38, 0.22), inset 0 1px 0 rgba(255,255,255,.3);
   transition: box-shadow 0.2s;
 }
 .logo:hover .logo__icon {
-  box-shadow: 0 0 20px rgba(0, 123, 255, 0.5);
+  box-shadow: 0 7px 22px rgba(255, 91, 38, 0.34), inset 0 1px 0 rgba(255,255,255,.3);
 }
 
 .logo__zap {

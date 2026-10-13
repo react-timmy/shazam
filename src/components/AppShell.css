@@ -105,16 +105,7 @@
   display:flex; align-items:center; gap:10px;
 }
 
-.sidebar__plan { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
-.sidebar__plan-badge {
-  font-family: var(--font-mono);
-  font-size:10px; letter-spacing:0.06em;
-  color: var(--blue);
-  background: var(--blue-dim);
-  border: 1px solid var(--border-blue);
-  border-radius:4px; padding:1px 8px; width:fit-content;
-}
-.sidebar__plan-label { font-family:var(--font-ui); font-size:11px; color:var(--text-muted); }
+.sidebar__free-note { flex:1; min-width:0; font-family:var(--font-ui); font-size:11px; color:var(--text-muted); }
 
 .sidebar__avatar {
   width:30px; height:30px; border-radius:50%;
@@ -174,3 +165,93 @@
   .shell__mobile-bar { display:none; }
   .shell__overlay    { display:none; }
 }
+
+/* A quieter, more consistent workspace frame. */
+.sidebar { background: rgba(10, 12, 18, 0.94); }
+.shell__content { padding: clamp(22px, 3vw, 40px) clamp(18px, 3.2vw, 48px); }
+.sidebar__link { min-height: 42px; }
+.sidebar__link, .sidebar__collapse-btn, .shell__hamburger,
+.sidebar__avatar { transition-duration: 180ms; }
+@media (max-width: 768px) {
+  .shell__content { padding: 22px 18px 32px; }
+}
+@media (max-width: 420px) {
+  .shell__content { padding: 18px 14px 28px; }
+}
+
+/* SHAZAM studio shell: quiet graphite surfaces, warm light, one electric accent. */
+.shell {
+  background:
+    radial-gradient(ellipse at 82% 4%, rgba(255, 107, 53, .055), transparent 34rem),
+    var(--bg);
+}
+.sidebar {
+  background: rgba(14, 14, 16, .96);
+  border-right-color: rgba(255,255,255,.065);
+  box-shadow: 12px 0 40px rgba(0,0,0,.12);
+}
+.sidebar__top { min-height: 70px; padding: 18px 17px; }
+.sidebar__section-label {
+  padding: 14px 12px 7px;
+  color: #6F6B68;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+.sidebar__section-label--pages { padding-top: 24px; }
+.sidebar__create {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 107, 53, .24);
+  border-radius: 10px;
+  color: #FFF5F0;
+  background: linear-gradient(110deg, rgba(255,107,53,.19), rgba(255,107,53,.08));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+  font-size: 13px;
+  font-weight: 650;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.sidebar__create:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 137, 95, .58);
+  background: linear-gradient(110deg, rgba(255,107,53,.25), rgba(255,107,53,.11));
+  box-shadow: 0 8px 24px rgba(255, 91, 38, .12);
+}
+.sidebar__create-icon {
+  width: 19px;
+  height: 19px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  color: #17100D;
+  background: #FF895F;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+.sidebar__nav { padding: 12px 10px; }
+.sidebar__link {
+  min-height: 42px;
+  border-radius: 9px;
+  color: #A6A19D;
+}
+.sidebar__link:hover { background: rgba(255,255,255,.045); color: #F8F6F3; }
+.sidebar__link--active {
+  color: #FF9A72;
+  border-color: rgba(255, 107, 53, .18);
+  background: linear-gradient(90deg, rgba(255,107,53,.12), rgba(255,107,53,.045));
+}
+.sidebar__link--active::before { background: #FF7950; }
+.sidebar__bottom { min-height: 72px; padding: 14px 15px; }
+.sidebar__avatar { background: linear-gradient(145deg, #FF9369, #D94D22); border-color: rgba(255,255,255,.2); }
+.sidebar__avatar:hover { box-shadow: 0 0 0 4px rgba(255,107,53,.14); }
+.sidebar__collapse-btn:hover { border-color: rgba(255,255,255,.08); }
+.shell__mobile-bar { background: rgba(14,14,16,.92); }
+@media (max-width: 768px) {
+  .sidebar__nav { padding: 14px 12px; }
+}
+.shell--collapsed .sidebar__create { justify-content: center; padding: 0; }
+.shell--collapsed .sidebar__create-icon { width: 30px; height: 30px; }

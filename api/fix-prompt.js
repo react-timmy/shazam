@@ -8,13 +8,21 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { spec, issue } = req.body || {}
+  const { spec, issue, image } = req.body || {}
   if (!spec || !issue) return res.status(400).json({ error: 'spec and issue are required.' })
 
+  const content = []
+  if (image?.base64) {
+    content.push({ type: 'image_url', image_url: { url: `data:${image.mimeType || 'image/png'};base64,${image.base64}` } })
+  }
+  content.push({
+    type: 'text',
+    text: `Here is an implementation spec:\n\n${spec}\n\nThe user reports this issue:\n"${issue}"\n\n${image?.base64 ? 'Use the attached screenshot as additional context. ' : ''}Write a concise, targeted fix prompt (2–5 sentences) that an AI coding assistant can paste directly into their tool to fix only this specific issue. Do not rewrite the whole spec. Be precise about what to change and to what.`,
+  })
   const messages = [
     {
       role: 'user',
-      content: `Here is an implementation spec:\n\n${spec}\n\nThe user reports this issue:\n"${issue}"\n\nWrite a concise, targeted fix prompt (2–5 sentences) that an AI coding assistant can paste directly into their tool to fix only this specific issue. Do not rewrite the whole spec. Be precise about what to change and to what.`,
+      content,
     },
   ]
 

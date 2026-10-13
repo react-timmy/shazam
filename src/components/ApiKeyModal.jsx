@@ -30,7 +30,7 @@ export default function ApiKeyModal({ onSave, onClose, existingKey }) {
           </div>
           <div>
             <h2 className="modal__title">Cloudflare Workers AI</h2>
-            <p className="modal__sub">100% free · 10,000 requests/day · No credit card</p>
+            <p className="modal__sub">Free to use · Daily usage limits apply</p>
           </div>
           {onClose && (
             <button className="modal__close" onClick={onClose}>

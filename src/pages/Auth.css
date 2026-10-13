@@ -114,3 +114,44 @@
   width:600px; height:600px; border-radius:50%; pointer-events:none;
   background:radial-gradient(ellipse,rgba(79,142,247,0.06) 0%,transparent 65%);
 }
+
+/* Warm, focused sign-in surface */
+.auth-page {
+  background-color: #0A0A0C;
+  background-image: linear-gradient(rgba(255,255,255,.027) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.027) 1px,transparent 1px);
+  background-size: 64px 64px;
+}
+.auth-page::before { background: radial-gradient(ellipse,rgba(255,107,53,.105) 0%,transparent 67%); }
+.auth-bg-glow { background: radial-gradient(ellipse,rgba(255,107,53,.065) 0%,transparent 67%); }
+.auth-card {
+  max-width: 424px; border-color: rgba(255,255,255,.1); border-radius: 19px;
+  background: linear-gradient(145deg,rgba(24,24,27,.96),rgba(15,15,17,.98));
+  box-shadow: 0 35px 90px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.04);
+}
+.auth-card::before { background: linear-gradient(90deg,transparent,#FF865C,transparent); }
+.auth-card__header { padding: 31px 31px 0; }
+.auth-card__title { font-size: 27px; letter-spacing: -.06em; }
+.auth-card__sub { color: #9A938D; font-family: var(--font-ui); font-size: 13px; }
+.auth-form { gap: 15px; padding-right: 31px; padding-left: 31px; }
+.auth-label { color: #AAA29C; font-family: var(--font-ui); font-size: 11px; letter-spacing: .02em; text-transform: none; }
+.auth-input { min-height: 45px; border-color: rgba(255,255,255,.09); border-radius: 9px; background: rgba(8,8,10,.72); }
+.auth-input:focus { border-color: rgba(255,137,95,.62); box-shadow: 0 0 0 3px rgba(255,107,53,.1); }
+.auth-submit {
+  min-height: 46px; border-radius: 9px; color: #1D100A;
+  background: linear-gradient(135deg,#FFA17C,#FF7548);
+  box-shadow: 0 7px 22px rgba(255,91,38,.18),inset 0 1px 0 rgba(255,255,255,.32);
+}
+.auth-submit:hover:not(:disabled) { background: #FFB08F; box-shadow: 0 10px 26px rgba(255,91,38,.24); }
+.auth-link { color: #FF9A72; }
+.auth-link:hover { color: #FFB08F; }
+.auth-card__footer { color: #99918B; }
+.auth-divider::before, .auth-divider::after { background: rgba(255,255,255,.09); }
+.auth-divider span { color: #817A75; font-family: var(--font-ui); letter-spacing: .08em; }
+.auth-google-btn { min-height: 45px; border-radius: 9px; }
+.auth-oauth-note, .auth-page__note { color: #89827D; }
+@media (max-width: 480px) {
+  .auth-card__header { padding-right: 22px; padding-left: 22px; }
+  .auth-form { padding-right: 22px; padding-left: 22px; }
+  .auth-divider { padding-right: 22px; padding-left: 22px; }
+  .auth-card__footer { padding-right: 22px; padding-left: 22px; }
+}

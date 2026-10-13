@@ -5,29 +5,17 @@ import { useAuth } from '../contexts/AuthContext'
 import { useProjects } from '../contexts/ProjectsContext'
 import './Settings.css'
 
-const PLANS = [
-  {
-    id: 'FREE',
-    name: 'Free',
-    price: '$0',
-    period: null,
-    features: ['20 AI actions/month', '5 total projects', 'Design analysis', 'Asset generation', 'Fix prompts'],
-  },
-]
-
 export default function Settings() {
   const navigate = useNavigate()
   const { user, updateUser, deleteAccount } = useAuth()
-  const { projects, getUsageThisMonth } = useProjects()
+  const { projects, getUsageToday, getUsageRemaining } = useProjects()
 
   const [name, setName] = useState(user?.name || '')
-  const [email] = useState(user?.email || '') // email is read-only
   const [editingName, setEditingName] = useState(false)
   const [nameSaved, setNameSaved] = useState(false)
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
-  const [upgradeMsg, setUpgradeMsg] = useState('')
   const [avatarUploading, setAvatarUploading] = useState(false)
   const avatarInputRef = React.useRef()
 
@@ -57,14 +45,6 @@ export default function Settings() {
     }
   }
 
-  const handleUpgrade = (planId) => {
-    if (planId === user?.plan) return
-    // In a real app this would open Stripe — for now we just update the local plan
-    updateUser({ plan: planId })
-    setUpgradeMsg(`Upgraded to ${planId} plan!`)
-    setTimeout(() => setUpgradeMsg(''), 3000)
-  }
-
   const handleDeleteAccount = async () => {
     if (deleteInput !== 'DELETE') return
     try {
@@ -79,14 +59,15 @@ export default function Settings() {
     ? user.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
     : user?.email ? user.email[0].toUpperCase() : '?'
 
-  const thisMonthCount = getUsageThisMonth()
+  const actionsToday = getUsageToday()
+  const actionsRemaining = getUsageRemaining()
 
   return (
     <AppShell>
       <div className="settings">
         <div className="settings__header">
           <h1 className="settings__title">Settings</h1>
-          <p className="settings__sub">Manage your account, plan, and API configuration.</p>
+          <p className="settings__sub">Manage your account and see how much of today’s allowance you’ve used.</p>
         </div>
 
         {/* ── Account ── */}
@@ -186,29 +167,25 @@ export default function Settings() {
         <div className="settings__card">
           <div className="settings__card-head">
             <h2 className="settings__card-title">Usage</h2>
-            <p className="settings__card-sub">Your current usage this month.</p>
+            <p className="settings__card-sub">SHAZAM is a free tool. Each account can use up to 20 AI actions per day; the count resets at midnight UTC.</p>
           </div>
 
           <div className="settings__usage-grid">
             <div className="settings__usage-stat">
-              <span className="settings__usage-val">{thisMonthCount}</span>
-              <span className="settings__usage-label">AI actions this month</span>
+              <span className="settings__usage-val">{actionsToday}</span>
+              <span className="settings__usage-label">AI actions used today</span>
               <div className="settings__usage-bar">
-                <div className="settings__usage-fill" style={{width:`${Math.min(100,(thisMonthCount/20)*100)}%`}}/>
+                <div className="settings__usage-fill" style={{width:`${Math.min(100,(actionsToday/20)*100)}%`}}/>
               </div>
-              <span className="settings__usage-limit">{thisMonthCount} of 20 free</span>
+              <span className="settings__usage-limit">{actionsToday} of 20 actions</span>
             </div>
             <div className="settings__usage-stat">
-              <span className="settings__usage-val">{projects.length}</span>
-              <span className="settings__usage-label">Total projects</span>
+              <span className="settings__usage-val">{actionsRemaining}</span>
+              <span className="settings__usage-label">Actions remaining today</span>
               <div className="settings__usage-bar">
-                <div className="settings__usage-fill" style={{width:`${Math.min(100,(projects.length/5)*100)}%`}}/>
+                <div className="settings__usage-fill" style={{width:`${Math.min(100,(actionsRemaining/20)*100)}%`}}/>
               </div>
-              <span className="settings__usage-limit">{projects.length} of 5 max</span>
-            </div>
-            <div className="settings__usage-stat">
-              <span className="settings__usage-val">{user?.plan || 'FREE'}</span>
-              <span className="settings__usage-label">Current plan</span>
+              <span className="settings__usage-limit">Resets at midnight UTC</span>
             </div>
           </div>
         </div>
@@ -217,7 +194,7 @@ export default function Settings() {
         <div className="settings__card">
           <div className="settings__card-head">
             <h2 className="settings__card-title">AI Engine</h2>
-            <p className="settings__card-sub">Image analysis is powered by Gemini 2.5 Flash (Google) on our server. No API key required from you.</p>
+            <p className="settings__card-sub">Image analysis and generation run through SHAZAM’s Gemini service. The provider key stays on the server.</p>
           </div>
           <div className="settings__row">
             <label className="settings__label">Model</label>
@@ -226,64 +203,12 @@ export default function Settings() {
                 <circle cx="5" cy="5" r="4" fill="currentColor" opacity="0.2"/>
                 <path d="M2.5 5l2 2 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Gemini 2.5 Flash — Active
+              Gemini 3.8 Flash
             </span>
           </div>
           <div className="settings__row">
             <label className="settings__label">Managed by</label>
             <span className="settings__value settings__value--muted">SHAZAM server — your designs stay private</span>
-          </div>
-        </div>
-
-        {/* ── Plan ── */}
-        <div className="settings__card">
-          <div className="settings__card-head">
-            <h2 className="settings__card-title">Plan</h2>
-            <p className="settings__card-sub">Billing and monthly prompt usage.</p>
-          </div>
-
-          <div className="settings__row">
-            <label className="settings__label">Current Plan</label>
-            <span className="settings__badge settings__badge--lightning">{user?.plan || 'FREE'}</span>
-          </div>
-
-          {upgradeMsg && (
-            <div className="settings__upgrade-msg">⚡ {upgradeMsg}</div>
-          )}
-
-          <div className="settings__plans">
-            {PLANS.map(plan => (
-              <div
-                key={plan.id}
-                className={`settings__plan ${plan.featured ? 'settings__plan--featured' : ''} ${user?.plan === plan.id ? 'settings__plan--active' : ''}`}
-              >
-                {plan.featured && <div className="settings__plan-badge">⚡ POPULAR</div>}
-                <div className="settings__plan-header">
-                  <span className="settings__plan-name">{plan.name}</span>
-                  <span className="settings__plan-price">
-                    {plan.price}
-                    {plan.period && <span className="settings__plan-per">/{plan.period}</span>}
-                  </span>
-                </div>
-                <ul className="settings__plan-features">
-                  {plan.features.map((f,i) => (
-                    <li key={i}>
-                      <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                        <path d="M1.5 5.5l2.5 2.5 5.5-5.5" stroke={plan.featured ? 'var(--lightning)' : 'var(--orange)'} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className={`settings__plan-btn ${user?.plan === plan.id ? 'settings__plan-btn--active' : plan.featured ? 'settings__plan-btn--featured' : ''}`}
-                  onClick={() => handleUpgrade(plan.id)}
-                  disabled={user?.plan === plan.id}
-                >
-                  {user?.plan === plan.id ? 'Current Plan' : `Upgrade to ${plan.name}`}
-                </button>
-              </div>
-            ))}
           </div>
         </div>
 

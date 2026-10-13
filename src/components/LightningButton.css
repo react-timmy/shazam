@@ -69,3 +69,21 @@
   animation:spin 0.7s linear infinite;
   flex-shrink:0;
 }
+
+.lbtn {
+  min-height: 48px;
+  padding: 12px 22px;
+  border: 1px solid rgba(255,255,255,.24);
+  border-radius: 10px;
+  color: #1D100A;
+  background: linear-gradient(135deg,#FFA17C,#FF7548);
+  box-shadow: 0 8px 24px rgba(255,91,38,.2), inset 0 1px 0 rgba(255,255,255,.35);
+  font-weight: 750;
+  animation: none;
+}
+.lbtn:hover:not(.lbtn--disabled):not(.lbtn--loading) {
+  background: #FFB08F;
+  box-shadow: 0 11px 29px rgba(255,91,38,.27), inset 0 1px 0 rgba(255,255,255,.4);
+}
+.lbtn__bolt { filter: drop-shadow(0 0 5px #FF7548) drop-shadow(0 0 9px rgba(255,107,53,.35)); }
+.lbtn__spinner { border-color: rgba(29,16,10,.22); border-top-color: #1D100A; }

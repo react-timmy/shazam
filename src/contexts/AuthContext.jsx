@@ -66,7 +66,9 @@ export function AuthProvider({ children }) {
       })
       const data = await res.json()
       if (data.user) setUser(data.user)
-    } catch {}
+    } catch {
+      // Keep the local user state unchanged if the API is temporarily unavailable.
+    }
   }
 
   // ── Delete account ────────────────────────────────────────────────────────

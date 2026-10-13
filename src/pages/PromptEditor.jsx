@@ -97,7 +97,16 @@ function exportMarkdown(promptText, projectName) {
 // ── Upload Zone ───────────────────────────────────────────────────────────────
 function UploadZone({ files, onFiles, onRemove }) {
   const [dragging, setDragging] = useState(false)
+  const [previewUrls, setPreviewUrls] = useState([])
   const inputRef = useRef()
+
+  useEffect(() => {
+    const urls = files.map(file => URL.createObjectURL(file))
+    // Object URLs are an external browser resource; mirror the current files.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPreviewUrls(urls)
+    return () => urls.forEach(URL.revokeObjectURL)
+  }, [files])
 
   const handleDrop = useCallback((e) => {
     e.preventDefault()
@@ -140,7 +149,7 @@ function UploadZone({ files, onFiles, onRemove }) {
             {files.map((file, i) => (
               <div key={i} className="upload-thumb">
                 <img
-                  src={URL.createObjectURL(file)}
+                  src={previewUrls[i]}
                   alt={file.name}
                   className="upload-thumb__img"
                 />
@@ -200,10 +209,12 @@ function AssetCard({ asset, onGenerate }) {
       {asset.status === 'done' && asset.result ? (
         <div className="asset-card__result">
           {asset.resultType === 'svg' ? (
-            <div
-              className="asset-card__svg-preview"
-              dangerouslySetInnerHTML={{ __html: asset.result.replace(/currentColor/g, 'white') }}
-            />
+            <div className="asset-card__svg-preview">
+              <img
+                src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(asset.result.replace(/currentColor/g, 'white'))}`}
+                alt="Generated icon preview"
+              />
+            </div>
           ) : (
             <p className="asset-card__image-prompt">{asset.result.slice(0, 100)}…</p>
           )}
@@ -236,7 +247,7 @@ function PromptPreview({ text }) {
         if (!line.trim()) return <div key={i} className="preview-spacer" />
         const isBold = line.startsWith('**') && line.endsWith('**')
         if (isBold) return <p key={i} className="preview-heading">{line.replace(/\*\*/g, '')}</p>
-        if (/^[A-Z][A-Za-z\s&\/\-]{2,50}$/.test(line.trim()) && i < 80) {
+        if (/^[A-Z][A-Za-z\s&/-]{2,50}$/.test(line.trim()) && i < 80) {
           return <p key={i} className="preview-heading">{line}</p>
         }
         return <p key={i} className="preview-line">{line}</p>
@@ -250,7 +261,7 @@ export default function PromptEditor() {
   const { id }       = useParams()
   const navigate     = useNavigate()
   const location     = useLocation()
-  const { projects, addProject, updateProject, getProject, trackUsage, getUsageThisMonth } = useProjects()
+  const { addProject, updateProject, getProject, getUsageRemaining, refreshUsage } = useProjects()
 
   const isNew           = id === 'new'
   const existingProject = isNew ? null : getProject(id)  // id may be _id from MongoDB
@@ -279,12 +290,31 @@ export default function PromptEditor() {
 
   const fixScreenshotRef = useRef()
 
+  useEffect(() => () => {
+    if (fixScreenshot?.preview) URL.revokeObjectURL(fixScreenshot.preview)
+  }, [fixScreenshot])
+
+  // Projects arrive asynchronously from the API. Hydrate the editor when a
+  // deep link is opened before that request has completed.
+  useEffect(() => {
+    if (!existingProject) return
+    setPromptText(existingProject.prompt || '')
+    setEditMode(false)
+    setDesignType(existingProject.designType || 'None (auto-detect)')
+    setAnalyzed(!!existingProject.prompt)
+    setProjectName(existingProject.name || 'Untitled Project')
+    setLiveUrl(existingProject.liveUrl || '')
+    setCurrentProjectId(existingProject._id || existingProject.id || null)
+    setAssets(existingProject.assets || [])
+    setThumbnail(existingProject.thumbnail || null)
+  }, [existingProject])
+
   // Parse assets when spec is loaded or analyzed
   useEffect(() => {
     if (promptText && analyzed && assets.length === 0) {
       setAssets(parseAssets(promptText))
     }
-  }, [promptText, analyzed])
+  }, [promptText, analyzed, assets.length])
 
   const handleFiles      = (f) => setFiles(prev => [...prev, ...f].slice(0, 5))
   const handleRemoveFile = (i) => setFiles(prev => prev.filter((_, j) => j !== i))
@@ -311,11 +341,10 @@ export default function PromptEditor() {
 
   const handleAnalyze = async () => {
     if (files.length === 0) { setAnalysisError('Please upload at least one design image.'); return }
-    if (isNew && projects.length >= 5) { setAnalysisError('You have reached the 5 project limit on the free plan. Delete a project to create a new one.'); return }
-    if (getUsageThisMonth() >= 20) { setAnalysisError('You have used all 20 AI actions for this month. Your limit resets next month.'); return }
+    if (getUsageRemaining() <= 0) { setAnalysisError('You’ve reached today’s limit of 20 AI actions. Your allowance resets at midnight UTC.'); return }
     setAnalyzing(true); setAnalysisError('')
     try {
-      const result = await analyzeDesign(files, null, designType)
+      const result = await analyzeDesign(files, designType)
       const thumb  = await generateThumbnail(files[0])
       const parsed = parseAssets(result)
       setPromptText(result)
@@ -334,6 +363,7 @@ export default function PromptEditor() {
     } catch (err) {
       setAnalysisError(err.message)
     } finally {
+      refreshUsage()
       setAnalyzing(false)
     }
   }
@@ -353,15 +383,15 @@ export default function PromptEditor() {
 
   const handleGenerateFix = async () => {
     if (!fixIssue.trim()) return
-    if (getUsageThisMonth() >= 20) { setFixResult('Error: You have used all 20 AI actions for this month. Your limit resets next month.'); return }
+    if (getUsageRemaining() <= 0) { setFixResult('Error: You’ve reached today’s limit of 20 AI actions. Your allowance resets at midnight UTC.'); return }
     setGeneratingFix(true); setFixResult('')
     try {
-      const r = await generateFixPrompt(promptText, fixIssue, null)
+      const r = await generateFixPrompt(promptText, fixIssue, fixScreenshot?.file || null)
       setFixResult(r)
-      trackUsage() // fix prompt = 1 usage
     } catch (err) {
       setFixResult(`Error: ${err.message}`)
     } finally {
+      refreshUsage()
       setGeneratingFix(false)
     }
   }
@@ -374,7 +404,7 @@ export default function PromptEditor() {
   }
 
   const handleGenerateAsset = async (asset) => {
-    if (getUsageThisMonth() >= 20) {
+    if (getUsageRemaining() <= 0) {
       setAssets(prev => prev.map(a => a.label === asset.label ? { ...a, status: 'error' } : a))
       return
     }
@@ -386,9 +416,10 @@ export default function PromptEditor() {
       )
       setAssets(updated)
       if (currentProjectId) updateProject(currentProjectId, { assets: updated })
-      trackUsage() // asset generate = 1 usage
     } catch {
       setAssets(prev => prev.map(a => a.label === asset.label ? { ...a, status: 'error' } : a))
+    } finally {
+      refreshUsage()
     }
   }
 
@@ -632,7 +663,7 @@ export default function PromptEditor() {
               <div className="editor__card">
                 <h2 className="editor__card-title" style={{marginBottom:4}}>New Prompt</h2>
                 <p className="editor__card-sub" style={{marginBottom:24}}>
-                  Upload reference designs or screen recordings and generate a strict implementation prompt.
+                  Upload up to five reference images and generate a detailed implementation prompt.
                 </p>
 
                 <p className="editor__step-label">Step 1: Upload References</p>

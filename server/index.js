@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import axios from 'axios'
 import crypto from 'crypto'
+import { promisify } from 'util'
 import session from 'express-session'
 import passport from 'passport'
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20'
@@ -16,9 +17,18 @@ dotenv.config({ path: join(__dirname, '.env') })
 
 const app  = express()
 const PORT = process.env.PORT || 3001
+const NODE_ENV = process.env.NODE_ENV || 'development'
+const SESSION_SECRET = process.env.SESSION_SECRET
+
+if (NODE_ENV === 'production' && !SESSION_SECRET) {
+  throw new Error('SESSION_SECRET must be set in production.')
+}
 
 // ── MongoDB ───────────────────────────────────────────────────────────────────
 const MONGO_URI = process.env.MONGODB_URI
+if (NODE_ENV === 'production' && !MONGO_URI) {
+  throw new Error('MONGODB_URI must be set in production.')
+}
 if (MONGO_URI) {
   mongoose.connect(MONGO_URI)
     .then(() => console.log('✓ MongoDB connected'))
@@ -34,7 +44,6 @@ const userSchema = new mongoose.Schema({
   name:          String,
   avatar:        String,
   passwordHash:  String, // for email/password accounts
-  plan:          { type: String, default: 'FREE' },
   createdAt:     { type: Date, default: Date.now },
 })
 const User = mongoose.models.User || mongoose.model('User', userSchema)
@@ -56,10 +65,78 @@ const Project = mongoose.models.Project || mongoose.model('Project', projectSche
 
 const usageSchema = new mongoose.Schema({
   userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  yearMonth: String, // e.g. "2026-2"
+  dayKey:    String, // UTC date, e.g. "2026-10-13"
   count:     { type: Number, default: 0 },
 })
+usageSchema.index({ userId: 1, dayKey: 1 }, {
+  unique: true,
+  partialFilterExpression: { dayKey: { $type: 'string' } },
+})
 const Usage = mongoose.models.Usage || mongoose.model('Usage', usageSchema)
+const DAILY_USAGE_LIMIT = 20
+
+function currentUsageDay() {
+  const now = new Date()
+  return {
+    now,
+    dayKey: now.toISOString().slice(0, 10),
+    resetsAt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)),
+  }
+}
+
+async function consumeDailyUsage(userId) {
+  const { dayKey } = currentUsageDay()
+  let record
+  try {
+    record = await Usage.findOneAndUpdate(
+      { userId, dayKey },
+      { $inc: { count: 1 }, $setOnInsert: { userId, dayKey } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    )
+  } catch (err) {
+    // Two first requests can race to create today's row; retry against the unique row.
+    if (err.code !== 11000) throw err
+    record = await Usage.findOneAndUpdate(
+      { userId, dayKey },
+      { $inc: { count: 1 } },
+      { new: true },
+    )
+  }
+
+  if (record.count > DAILY_USAGE_LIMIT) {
+    await Usage.updateOne({ _id: record._id }, { $inc: { count: -1 } })
+    const { resetsAt } = currentUsageDay()
+    const error = new Error('Daily limit reached.')
+    error.dailyUsageLimit = true
+    error.usage = { count: DAILY_USAGE_LIMIT, limit: DAILY_USAGE_LIMIT, remaining: 0, resetsAt }
+    throw error
+  }
+  return record.count
+}
+
+async function releaseDailyUsage(userId) {
+  try {
+    const { dayKey } = currentUsageDay()
+    await Usage.updateOne({ userId, dayKey, count: { $gt: 0 } }, { $inc: { count: -1 } })
+  } catch (err) {
+    console.error('[usage] Could not release failed request:', err.message)
+  }
+}
+
+async function enforceDailyUsage(userId, res) {
+  try {
+    await consumeDailyUsage(userId)
+    return true
+  } catch (err) {
+    if (err.dailyUsageLimit) {
+      res.status(429).json({ error: 'You’ve reached today’s limit of 20 AI actions. Your allowance resets at midnight UTC.', usage: err.usage })
+      return false
+    }
+    console.error('[usage]', err.message)
+    res.status(500).json({ error: 'Could not verify today’s usage. Please try again.' })
+    return false
+  }
+}
 
 // ── Middleware ─────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1) // Required for Railway/Render proxy
@@ -71,15 +148,16 @@ app.use(cors({
 app.use(express.json({ limit: '25mb' }))
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'shazam-dev-secret-change-in-prod',
+  secret: SESSION_SECRET || 'shazam-dev-secret-change-in-prod',
   resave: false,
   saveUninitialized: false,
   store: MONGO_URI
     ? MongoStore.create({ mongoUrl: MONGO_URI })
     : undefined,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: NODE_ENV === 'production',
     httpOnly: true,
+    sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   },
 }))
@@ -88,30 +166,33 @@ app.use(passport.initialize())
 app.use(passport.session())
 
 // ── Passport Google OAuth ─────────────────────────────────────────────────────
-passport.use(new GoogleStrategy(
-  {
-    clientID:     process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL:  process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/auth/google/callback',
-    proxy:        true,
-  },
-  async (accessToken, refreshToken, profile, done) => {
-    try {
-      let user = await User.findOne({ googleId: profile.id })
-      if (!user) {
-        user = await User.create({
-          googleId: profile.id,
-          email:    profile.emails?.[0]?.value,
-          name:     profile.displayName,
-          avatar:   profile.photos?.[0]?.value,
-        })
+const googleAuthConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+if (googleAuthConfigured) {
+  passport.use(new GoogleStrategy(
+    {
+      clientID:     process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL:  process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/auth/google/callback',
+      proxy:        true,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        let user = await User.findOne({ googleId: profile.id })
+        if (!user) {
+          user = await User.create({
+            googleId: profile.id,
+            email:    profile.emails?.[0]?.value,
+            name:     profile.displayName,
+            avatar:   profile.photos?.[0]?.value,
+          })
+        }
+        return done(null, user)
+      } catch (err) {
+        return done(err, null)
       }
-      return done(null, user)
-    } catch (err) {
-      return done(err, null)
     }
-  }
-))
+  ))
+}
 
 passport.serializeUser((user, done) => done(null, user._id.toString()))
 passport.deserializeUser(async (id, done) => {
@@ -130,21 +211,22 @@ const requireAuth = (req, res, next) => {
 }
 
 // ── Auth routes ───────────────────────────────────────────────────────────────
-app.get('/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-)
+app.get('/auth/google', (req, res, next) => {
+  if (!googleAuthConfigured) return res.status(503).json({ error: 'Google sign-in is not configured.' })
+  passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next)
+})
 
-app.get('/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login?error=auth_failed' }),
-  (req, res) => {
-    res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173')
-  }
-)
+app.get('/auth/google/callback', (req, res, next) => {
+  if (!googleAuthConfigured) return res.status(503).json({ error: 'Google sign-in is not configured.' })
+  passport.authenticate('google', { failureRedirect: '/login?error=auth_failed' })(req, res, next)
+}, (req, res) => {
+  res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173')
+})
 
 app.get('/auth/me', (req, res) => {
   if (!req.user) return res.json({ user: null })
-  const { _id, name, email, avatar, plan, createdAt } = req.user
-  res.json({ user: { id: _id, name, email, avatar, plan, createdAt } })
+  const { _id, name, email, avatar, createdAt } = req.user
+  res.json({ user: { id: _id, name, email, avatar, createdAt } })
 })
 
 app.post('/auth/logout', (req, res) => {
@@ -152,121 +234,84 @@ app.post('/auth/logout', (req, res) => {
 })
 
 
-// ── Email / password signup ───────────────────────────────────────────────────
-app.post('/auth/signup', async (req, res) => {
-  try {
-    const { name, email, password } = req.body
-    if (!name || !email || !password) return res.status(400).json({ error: 'All fields are required.' })
-    if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' })
+// ── Email / password signup and login ─────────────────────────────────────────
+const scrypt = promisify(crypto.scrypt)
 
-    const existing = await User.findOne({ email })
-    if (existing) return res.status(400).json({ error: 'An account with this email already exists.' })
-
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex')
-    const user = await User.create({ name, email, passwordHash })
-
-    req.login(user, (err) => {
-      if (err) return res.status(500).json({ error: 'Login after signup failed.' })
-      const { _id, name, email: em, avatar, plan, createdAt } = user
-      res.json({ user: { id: _id, name, email: em, avatar, plan, createdAt } })
-    })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// ── Email / password login ────────────────────────────────────────────────────
-app.post('/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body
-    if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' })
-
-    const user = await User.findOne({ email })
-    if (!user) return res.status(401).json({ error: 'Incorrect email or password.' })
-    if (!user.passwordHash) return res.status(401).json({ error: 'This account uses Google sign-in. Please use "Continue with Google".' })
-
-    const hash = crypto.createHash('sha256').update(password).digest('hex')
-    if (hash !== user.passwordHash) return res.status(401).json({ error: 'Incorrect email or password.' })
-
-    req.login(user, (err) => {
-      if (err) return res.status(500).json({ error: 'Login failed.' })
-      const { _id, name, email: em, avatar, plan, createdAt } = user
-      res.json({ user: { id: _id, name, email: em, avatar, plan, createdAt } })
-    })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-
-// ── Form-based signup / login ─────────────────────────────────────────────────
-// Simple SHA-256 hash (no bcrypt dep needed — good enough for MVP)
 async function hashPassword(password) {
-  const msgBuffer = new TextEncoder().encode(password)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('')
+  const salt = crypto.randomBytes(16).toString('hex')
+  const derivedKey = await scrypt(password, salt, 64)
+  return `scrypt$${salt}$${derivedKey.toString('hex')}`
+}
+
+async function verifyPassword(password, storedHash) {
+  // Upgrade legacy unsalted SHA-256 hashes after a successful login.
+  if (/^[a-f0-9]{64}$/i.test(storedHash)) {
+    const legacyHash = crypto.createHash('sha256').update(password).digest()
+    const expectedHash = Buffer.from(storedHash, 'hex')
+    return expectedHash.length === legacyHash.length && crypto.timingSafeEqual(expectedHash, legacyHash)
+  }
+
+  const [algorithm, salt, key] = storedHash.split('$')
+  if (algorithm !== 'scrypt' || !salt || !/^[a-f0-9]{128}$/i.test(key || '')) return false
+  const expectedKey = Buffer.from(key, 'hex')
+  const derivedKey = await scrypt(password, salt, expectedKey.length)
+  return crypto.timingSafeEqual(expectedKey, derivedKey)
+}
+
+function sendLoginResponse(req, res, user, failureMessage) {
+  req.login(user, (err) => {
+    if (err) return res.status(500).json({ error: failureMessage })
+    const { _id, name, email, avatar, createdAt } = user
+    res.json({ user: { id: _id, name, email, avatar, createdAt } })
+  })
 }
 
 app.post('/auth/signup', async (req, res) => {
-  const { name, email, password } = req.body || {}
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: 'Name, email and password are required.' })
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' })
-  }
+  const { name, password } = req.body || {}
+  const email = req.body?.email?.trim().toLowerCase()
+  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' })
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' })
+
   try {
     const existing = await User.findOne({ email })
     if (existing) return res.status(400).json({ error: 'An account with this email already exists.' })
-
-    const hashed = await hashPassword(password)
-    const user = await User.create({ name, email, password: hashed })
-
-    // Log them in immediately
-    req.login(user, (err) => {
-      if (err) return res.status(500).json({ error: 'Signup succeeded but login failed.' })
-      const { _id, name, email, avatar, plan, createdAt } = user
-      res.json({ user: { id: _id, name, email, avatar, plan, createdAt } })
-    })
+    const user = await User.create({ name, email, passwordHash: await hashPassword(password) })
+    sendLoginResponse(req, res, user, 'Login after signup failed.')
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    if (err.code === 11000) return res.status(400).json({ error: 'An account with this email already exists.' })
+    res.status(500).json({ error: 'Could not create your account. Please try again.' })
   }
 })
 
 app.post('/auth/login', async (req, res) => {
-  const { email, password } = req.body || {}
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required.' })
-  }
+  const email = req.body?.email?.trim().toLowerCase()
+  const { password } = req.body || {}
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' })
+
   try {
     const user = await User.findOne({ email })
-    if (!user || !user.password) {
+    if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
       return res.status(401).json({ error: 'Incorrect email or password.' })
     }
-    const hashed = await hashPassword(password)
-    if (hashed !== user.password) {
-      return res.status(401).json({ error: 'Incorrect email or password.' })
+    if (/^[a-f0-9]{64}$/i.test(user.passwordHash)) {
+      user.passwordHash = await hashPassword(password)
+      await user.save()
     }
-    req.login(user, (err) => {
-      if (err) return res.status(500).json({ error: 'Login failed.' })
-      const { _id, name, email, avatar, plan, createdAt } = user
-      res.json({ user: { id: _id, name, email, avatar, plan, createdAt } })
-    })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
+    sendLoginResponse(req, res, user, 'Login failed.')
+  } catch {
+    res.status(500).json({ error: 'Could not sign in. Please try again.' })
   }
 })
 
 // ── User routes ───────────────────────────────────────────────────────────────
 app.patch('/api/user', requireAuth, async (req, res) => {
   try {
-    const { name, plan, avatar } = req.body
+    const { name, avatar } = req.body
     const updates = {}
     if (name)   updates.name   = name
-    if (plan)   updates.plan   = plan
     if (avatar) updates.avatar = avatar
     const updated = await User.findByIdAndUpdate(req.user._id, updates, { new: true }).lean()
-    res.json({ user: { id: updated._id, name: updated.name, email: updated.email, avatar: updated.avatar, plan: updated.plan, createdAt: updated.createdAt } })
+    res.json({ user: { id: updated._id, name: updated.name, email: updated.email, avatar: updated.avatar, createdAt: updated.createdAt } })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -295,8 +340,6 @@ app.get('/api/projects', requireAuth, async (req, res) => {
 
 app.post('/api/projects', requireAuth, async (req, res) => {
   try {
-    const count = await Project.countDocuments({ userId: req.user._id })
-    if (count >= 5) return res.status(400).json({ error: 'You have reached the 5 project limit on the free plan.' })
     const project = await Project.create({ ...req.body, userId: req.user._id })
     res.json({ project })
   } catch (err) {
@@ -330,34 +373,20 @@ app.delete('/api/projects/:id', requireAuth, async (req, res) => {
 // ── Usage routes ──────────────────────────────────────────────────────────────
 app.get('/api/usage', requireAuth, async (req, res) => {
   try {
-    const now = new Date()
-    const yearMonth = `${now.getFullYear()}-${now.getMonth()}`
-    const record = await Usage.findOne({ userId: req.user._id, yearMonth }).lean()
-    res.json({ count: record?.count || 0 })
+    const { dayKey, resetsAt } = currentUsageDay()
+    const record = await Usage.findOne({ userId: req.user._id, dayKey }).lean()
+    const count = record?.count || 0
+    res.json({ count, limit: DAILY_USAGE_LIMIT, remaining: Math.max(0, DAILY_USAGE_LIMIT - count), resetsAt })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
 
-app.post('/api/usage/track', requireAuth, async (req, res) => {
-  try {
-    const now = new Date()
-    const yearMonth = `${now.getFullYear()}-${now.getMonth()}`
-    const record = await Usage.findOneAndUpdate(
-      { userId: req.user._id, yearMonth },
-      { $inc: { count: 1 } },
-      { upsert: true, new: true }
-    )
-    res.json({ count: record.count })
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
-
-// ── NVIDIA NIM — shared config ────────────────────────────────────────────────
-const NVIDIA_KEY = process.env.NVIDIA_API_KEY
-const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions'
-const NVIDIA_MODEL = 'google/gemma-3n-e4b-it'
+// ── Gemini API — shared config ─────────────────────────────────────────────────
+const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash'
+const GEMINI_FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.6-flash'
+const geminiUrl = model => `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
 
 const SYSTEM_INSTRUCTION = `You are SHAZAM — the world's most advanced UI/UX Reverse-Engineering Intelligence. Your purpose is to deconstruct design screenshots into high-fidelity technical blueprints for AI coding agents (Cursor, Claude Code, v0, Lovable, etc.).
 
@@ -385,7 +414,7 @@ Your output must be a "Master Implementation Spec" that leaves zero room for AI 
     - **SPACING MATH:** Verify and enforce consistent internal padding and external margins across the design (e.g., "All cards must use exactly 24px internal padding").
     - **Z-INDEX & STACKING CONTEXT:** Explicitly identify "floating," "fixed," or "sticky" elements and assign them appropriate Z-index values to maintain the correct visual hierarchy.
 - **COMPONENT CATEGORIZATION & DEEP-DIVE:** 
-    - **CATEGORIZATION:** Group elements into semantic React components (e.g., Header.tsx, HeroSection.tsx, PricingCard.tsx) to provide a clear file tree structure for the coding tool.
+    - **CATEGORIZATION:** Group elements into semantic React components (e.g., Header.tsx, HeroSection.tsx, FeatureCard.tsx) to provide a clear file tree structure for the coding tool.
     - **VISUALS & SHADOW DECONSTRUCTION:** For every element, define borders (width/color) and opacity. 
     - **SHADOW DECONSTRUCTION:** Instead of "soft shadow," break it down exactly: box-shadow: [x-offset] [y-offset] [blur] [spread] [color].
     - **COPY-PASTE OCR:** Extract EVERY single piece of text from the image verbatim so the developer can copy-paste headings and body text directly.
@@ -398,32 +427,88 @@ Your output must be a "Master Implementation Spec" that leaves zero room for AI 
 [ENGINEER INSTRUCTION: Recreate this UI with pixel-perfect accuracy using Tailwind CSS and React.]
 ---
 (Followed by structured sections: GLOBAL TOKENS, LAYOUT, COMPONENTS, INTERACTIONS)`;
-async function callNvidia(messages, maxTokens = 4096, temperature = 0.2) {
-  if (!NVIDIA_KEY) throw new Error('NVIDIA_API_KEY is not set.')
-  const response = await axios.post(
-    NVIDIA_URL,
-    { model: NVIDIA_MODEL, messages, max_tokens: maxTokens, temperature, top_p: 1.0, stream: false },
-    { headers: { Authorization: `Bearer ${NVIDIA_KEY}`, 'Content-Type': 'application/json' }, timeout: 120000 }
-  )
-  const text = response.data?.choices?.[0]?.message?.content?.trim()
-  if (!text) throw new Error('Empty response from NVIDIA API.')
-  return text
+function toGeminiParts(content) {
+  const parts = Array.isArray(content) ? content : [{ type: 'text', text: content || '' }]
+  return parts.map(part => {
+    if (part.type === 'text') return { text: part.text || '' }
+    if (part.type === 'image_url') {
+      const url = part.image_url?.url || ''
+      const match = /^data:(image\/[\w.+-]+);base64,([\s\S]+)$/.exec(url)
+      if (!match) throw new Error('Gemini image inputs must be base64 data URLs.')
+      return { inlineData: { mimeType: match[1], data: match[2] } }
+    }
+    throw new Error(`Unsupported Gemini content part: ${part.type || 'unknown'}`)
+  })
 }
 
-function handleNvidiaError(err, res) {
-  const msg = err?.message || 'Unknown error'
+async function callGemini(messages, maxTokens = 4096, temperature = 0.2) {
+  if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY is not set.')
+  const systemText = messages.filter(message => message.role === 'system').map(message => message.content).join('\n\n')
+  const contents = messages
+    .filter(message => message.role !== 'system')
+    .map(message => ({ role: message.role === 'assistant' ? 'model' : 'user', parts: toGeminiParts(message.content) }))
+  const body = {
+      contents,
+      ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
+      generationConfig: { maxOutputTokens: maxTokens, temperature },
+  }
+  const models = [...new Set([GEMINI_MODEL, GEMINI_FALLBACK_MODEL])]
+
+  for (const [modelIndex, model] of models.entries()) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await axios.post(
+          geminiUrl(model),
+          body,
+          { headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY }, timeout: 120000 }
+        )
+        const text = response.data?.candidates?.[0]?.content?.parts
+          ?.map(part => part.text || '')
+          .join('')
+          .trim()
+        if (!text) throw new Error('Empty response from Gemini API.')
+        return text
+      } catch (err) {
+        if (!isGeminiTransientOverload(err)) throw err
+        if (attempt === 0) {
+          await new Promise(resolve => setTimeout(resolve, 600))
+          continue
+        }
+        if (modelIndex === 0 && models.length > 1) {
+          console.warn(`[Gemini] ${model} is busy; trying fallback model ${GEMINI_FALLBACK_MODEL}`)
+          break
+        }
+        throw err
+      }
+    }
+  }
+  throw new Error('Gemini models are temporarily overloaded. Please try again shortly.')
+}
+
+function isGeminiTransientOverload(err) {
   const status = err?.response?.status
-  console.error('[NVIDIA]', status || '', msg)
-  if (status === 401) return res.status(401).json({ error: 'Invalid NVIDIA_API_KEY.' })
-  if (status === 429) return res.status(429).json({ error: 'NVIDIA quota exceeded. Wait a moment and try again.' })
-  if (msg.includes('NVIDIA_API_KEY is not set')) return res.status(500).json({ error: 'NVIDIA_API_KEY is not set in environment variables.' })
-  return res.status(500).json({ error: `NVIDIA error: ${msg}` })
+  const message = (err?.response?.data?.error?.message || err?.message || '').toLowerCase()
+  if (status === 503 || /high demand|temporarily overloaded|service unavailable/.test(message)) return true
+  return status === 429 && /per.?minute|rate.?limit|too many requests/.test(message)
+}
+
+function handleGeminiError(err, res) {
+  const status = err?.response?.status
+  const msg = err?.response?.data?.error?.message || err?.message || 'Unknown error'
+  console.error('[Gemini]', status || '', msg)
+  if (status === 401 || status === 403) return res.status(status).json({ error: 'Gemini rejected the API key. Check GEMINI_API_KEY in server/.env.' })
+  if (status === 429) return res.status(429).json({ error: 'Gemini API quota reached. Please try again later.' })
+  if (status === 503) return res.status(503).json({ error: 'Gemini is temporarily overloaded. Please try again shortly.' })
+  if (status === 404 || status === 410) return res.status(503).json({ error: `Gemini model “${GEMINI_MODEL}” is unavailable. Set GEMINI_MODEL to a supported model.` })
+  if (msg.includes('GEMINI_API_KEY is not set')) return res.status(500).json({ error: 'GEMINI_API_KEY is not set in server/.env.' })
+  return res.status(500).json({ error: `Gemini error: ${msg}` })
 }
 
 // ── Analyze design ────────────────────────────────────────────────────────────
 app.post('/api/analyze', requireAuth, async (req, res) => {
   const { images, designType } = req.body || {}
   if (!images?.length) return res.status(400).json({ error: 'No images provided.' })
+  if (!(await enforceDailyUsage(req.user._id, res))) return
 
   const typeHint = designType && designType !== 'None (auto-detect)' ? `Design type: ${designType}\n\n` : ''
   const textPrompt = `${typeHint}Analyze the uploaded design screenshot(s) and generate a SHAZAM Implementation Spec. 
@@ -473,28 +558,39 @@ Act as a Lead UI Engineer. Prioritize pixel-perfect accuracy over creative inter
   ]
 
   try {
-    const text = await callNvidia(messages, 8192, 0.2)
+    const text = await callGemini(messages, 8192, 0.2)
     res.json({ prompt: text })
   } catch (err) {
-    handleNvidiaError(err, res)
+    await releaseDailyUsage(req.user._id)
+    handleGeminiError(err, res)
   }
 })
 
 // ── Fix prompt ────────────────────────────────────────────────────────────────
 app.post('/api/fix-prompt', requireAuth, async (req, res) => {
-  const { spec, issue } = req.body || {}
+  const { spec, issue, image } = req.body || {}
   if (!spec || !issue) return res.status(400).json({ error: 'spec and issue are required.' })
+  if (!(await enforceDailyUsage(req.user._id, res))) return
 
+  const content = []
+  if (image?.base64) {
+    content.push({ type: 'image_url', image_url: { url: `data:${image.mimeType || 'image/png'};base64,${image.base64}` } })
+  }
+  content.push({
+    type: 'text',
+    text: `Here is an implementation spec:\n\n${spec}\n\nThe user reports this issue:\n"${issue}"\n\n${image?.base64 ? 'Use the attached screenshot as additional context. ' : ''}Write a concise targeted fix prompt (2–5 sentences) that an AI coding assistant can paste to fix only this specific issue. Be precise about what to change and to what.`,
+  })
   const messages = [{
     role: 'user',
-    content: `Here is an implementation spec:\n\n${spec}\n\nThe user reports this issue:\n"${issue}"\n\nWrite a concise targeted fix prompt (2–5 sentences) that an AI coding assistant can paste to fix only this specific issue. Be precise about what to change and to what.`,
+    content,
   }]
 
   try {
-    const text = await callNvidia(messages, 512, 0.3)
+    const text = await callGemini(messages, 512, 0.3)
     res.json({ fixPrompt: text })
   } catch (err) {
-    handleNvidiaError(err, res)
+    await releaseDailyUsage(req.user._id)
+    handleGeminiError(err, res)
   }
 })
 
@@ -502,6 +598,7 @@ app.post('/api/fix-prompt', requireAuth, async (req, res) => {
 app.post('/api/generate-asset', requireAuth, async (req, res) => {
   const { label, type } = req.body || {}
   if (!label) return res.status(400).json({ error: 'label is required.' })
+  if (!(await enforceDailyUsage(req.user._id, res))) return
 
   const isIcon  = type?.toLowerCase() === 'icon'
   const isPhoto = type?.toLowerCase() === 'photo'
@@ -513,16 +610,17 @@ app.post('/api/generate-asset', requireAuth, async (req, res) => {
     : `Describe how to create this UI asset: "${label}". Be concise.`
 
   try {
-    const text = await callNvidia([{ role: 'user', content: prompt }], 1024, 0.4)
+    const text = await callGemini([{ role: 'user', content: prompt }], 1024, 0.4)
     res.json({ result: text, type: isIcon ? 'svg' : isPhoto ? 'image-prompt' : 'description' })
   } catch (err) {
-    handleNvidiaError(err, res)
+    await releaseDailyUsage(req.user._id)
+    handleGeminiError(err, res)
   }
 })
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, model: NVIDIA_MODEL, hasKey: !!NVIDIA_KEY })
+  res.json({ ok: true, model: GEMINI_MODEL, fallbackModel: GEMINI_FALLBACK_MODEL, hasKey: !!GEMINI_KEY })
 })
 
 // ── Serve built frontend in production ────────────────────────────────────────
@@ -535,6 +633,6 @@ if (process.env.NODE_ENV === 'production') {
 
 app.listen(PORT, () => {
   console.log(`\n⚡ SHAZAM server  →  http://localhost:${PORT}`)
-  console.log(`   Model : ${NVIDIA_MODEL}`)
-  console.log(`   Key   : ${NVIDIA_KEY ? '✓ configured' : '✗ MISSING — add NVIDIA_API_KEY to server/.env'}\n`)
+  console.log(`   Model : ${GEMINI_MODEL} (fallback: ${GEMINI_FALLBACK_MODEL})`)
+  console.log(`   Key   : ${GEMINI_KEY ? '✓ configured' : '✗ MISSING — add GEMINI_API_KEY to server/.env'}\n`)
 })

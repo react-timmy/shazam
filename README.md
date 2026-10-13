@@ -1,73 +1,65 @@
 # SHAZAM
 
-**AI Design Intelligence — upload any design, get a blueprint back.**
+SHAZAM turns reference images into implementation prompts. The app has a React/Vite frontend and an Express API for authentication, project storage, prompt analysis, and asset generation.
 
-SHAZAM takes any design you upload and generates a complete blueprint of it — a breakdown of its layout, components, and structure — from a single prompt. No manual teardown, no guesswork. Point it at a design, and it tells you how it's built.
+## Requirements
 
-## ✨ Features
+- Node.js 20.19+ (or 22.12+)
+- npm
+- MongoDB, for accounts and saved projects
+- A Gemini API key from Google AI Studio, for AI analysis and generation
 
-- **One-prompt analysis** — upload a design and get a full blueprint instantly
-- **Structural breakdown** — layout, components, and hierarchy extracted automatically
-- **AI-powered** — built on AI design intelligence to interpret visual structure, not just pixels
+## Setup
 
-## 🚀 Getting Started
+1. Install dependencies from the repository root:
 
-### Prerequisites
+   ```bash
+   npm install
+   ```
 
-- Node.js (v18+ recommended)
-- npm or yarn
+2. Create `server/.env`:
 
-### Installation
+   ```dotenv
+   PORT=3001
+   FRONTEND_URL=http://localhost:5173
+   MONGODB_URI=mongodb://127.0.0.1:27017/shazam
+   GEMINI_API_KEY=your-google-ai-studio-key
+   SESSION_SECRET=replace-with-a-long-random-secret
+   ```
 
-```bash
-git clone https://github.com/<your-username>/shazam.git
-cd shazam
-npm install
-```
+   Google sign-in is optional. To enable it, also set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_CALLBACK_URL=http://localhost:3001/auth/google/callback`.
 
-### Running locally
+3. Start the API and frontend in separate terminals:
 
-```bash
-npm run dev
-```
+   ```bash
+   npm run dev:server
+   ```
 
-The app will be available at `http://localhost:5173` by default.
+   ```bash
+   npm run dev
+   ```
 
-## 🛠️ Tech Stack
+   Open <http://localhost:5173>. The frontend talks to the API at `http://localhost:3001` by default. Set `VITE_API_URL` if the API is hosted elsewhere.
 
-- **React** + **Vite** (using `@vitejs/plugin-react-swc` for fast refresh via SWC)
-- ESLint for code quality
-- *(Add your AI/model provider, backend, and any other key dependencies here)*
+## Production
 
-## 📁 Project Structure
+Build the frontend with `npm run build`, then run `npm start` with `NODE_ENV=production`. The Express server serves the `dist` directory as well as the API. Configure `FRONTEND_URL`, `MONGODB_URI`, `GEMINI_API_KEY`, and a strong `SESSION_SECRET` for the deployment. The `api/` directory contains separate serverless endpoints; its auth handler is only a placeholder, so use the Express server for account and session support.
 
-```
-shazam/
-├── src/
-│   ├── components/
-│   ├── ...
-├── public/
-├── README.md
-└── package.json
-```
-*(Update this to reflect your actual folder layout)*
+## Main flows
 
-## 🧭 How It Works
+1. Sign up or sign in. Accounts and projects require a reachable MongoDB database.
+2. Upload up to five design images and choose an optional design type.
+3. The API sends those images to Gemini and returns an implementation spec.
+4. Save, edit, export, or copy the spec. The Fix Prompt and asset generation actions also use the API.
 
-1. Upload a design (image or file)
-2. SHAZAM analyzes it with a single AI prompt
-3. Get back a structured blueprint of the design's layout and components
+## Daily usage
 
-## 🗺️ Roadmap
+SHAZAM is free to use. Each signed-in account can make up to 20 AI requests per UTC day across design analysis, Fix Prompt, and asset generation. The server enforces this limit, and the allowance resets at midnight UTC. Creating projects and editing saved prompts do not consume AI actions.
 
-- soon
+## Scripts
 
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome.
-
-## 📄 License
-
----
-
-Built by [Cole Timmy](https://x.com/_devTimmy)
+- `npm run dev` — Vite frontend
+- `npm run dev:server` — Express API
+- `npm run build` — production frontend build
+- `npm run lint` — ESLint
+- `npm start` — Express API and built frontend in production

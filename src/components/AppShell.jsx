@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import Logo from './Logo'
@@ -82,6 +82,18 @@ export default function AppShell({ children }) {
         </div>
 
         <nav className="sidebar__nav">
+          {!collapsed && <span className="sidebar__section-label">WORKSPACE</span>}
+          <Link
+            to="/editor/new"
+            className="sidebar__create"
+            title="Create a new prompt"
+            aria-label="Create a new prompt"
+            onClick={() => setMobileOpen(false)}
+          >
+            <span className="sidebar__create-icon" aria-hidden="true">+</span>
+            {!collapsed && <span>New prompt</span>}
+          </Link>
+          {!collapsed && <span className="sidebar__section-label sidebar__section-label--pages">YOUR SPACE</span>}
           {NAV_ITEMS.map(item => (
             <Link
               key={item.path}
@@ -96,12 +108,7 @@ export default function AppShell({ children }) {
         </nav>
 
         <div className="sidebar__bottom">
-          {!collapsed && (
-            <div className="sidebar__plan">
-              <span className="sidebar__plan-badge">{user?.plan || 'FREE'}</span>
-              <span className="sidebar__plan-label">Current Plan</span>
-            </div>
-          )}
+          {!collapsed && <div className="sidebar__free-note">Free design workspace</div>}
 
           <div style={{ position: 'relative' }}>
             <button className="sidebar__avatar" onClick={() => setUserMenuOpen(!userMenuOpen)} title={user?.name}>

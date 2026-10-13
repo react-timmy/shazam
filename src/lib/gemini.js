@@ -1,8 +1,8 @@
 /**
  * SHAZAM — Frontend API Client
  *
- * All image analysis is handled server-side via @google/genai SDK.
- * This file simply sends requests to the Express server at /api/*.
+ * All AI work runs server-side through the Gemini API.
+ * This file sends requests to the Express server at /api/*.
  * Users never need an API key — the server holds it.
  *
  * Endpoints:
@@ -14,7 +14,7 @@
 /**
  * analyzeDesign
  * Converts uploaded images to base64 and sends them to the server.
- * The server calls Gemini 2.5 Flash and returns an implementation spec.
+ * The server calls Gemini Flash and returns an implementation spec.
  *
  * @param {File[]} files      - design screenshots (up to 5)
  * @param {string} _ignored   - kept for API compatibility, unused
@@ -23,7 +23,7 @@
  */
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-export async function analyzeDesign(files, _ignored = null, designType = '') {
+export async function analyzeDesign(files, designType = '') {
   if (!files || files.length === 0) {
     throw new Error('Please upload at least one design image.')
   }
@@ -72,14 +72,18 @@ export async function analyzeDesign(files, _ignored = null, designType = '') {
  * @param {string} issue  - plain-text description of what's wrong
  * @returns {Promise<string>}
  */
-export async function generateFixPrompt(spec, issue, _ignored = null) {
+export async function generateFixPrompt(spec, issue, screenshot = null) {
+  const image = screenshot ? {
+    base64: await fileToBase64(screenshot),
+    mimeType: screenshot.type || 'image/png',
+  } : null
   let res
   try {
     res = await fetch(`${API_BASE}/api/fix-prompt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ spec, issue }),
+      body: JSON.stringify({ spec, issue, image }),
     })
   } catch {
     throw new Error('Cannot reach the server. Make sure it is running (run: npm run dev).')

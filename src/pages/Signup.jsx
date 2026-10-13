@@ -104,7 +104,7 @@ export default function Signup() {
         </div>
       </div>
 
-      <p className="auth-page__note">Free tier · No credit card required</p>
+      <p className="auth-page__note">Free tool · 20 AI actions each day</p>
     </div>
   )
 }

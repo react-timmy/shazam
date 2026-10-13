@@ -76,3 +76,37 @@
 
 @media (max-width:1024px) { .lib__grid { grid-template-columns:repeat(2,1fr); } }
 @media (max-width:640px)  { .lib__grid { grid-template-columns:1fr; } .lib__header { flex-direction:column; } }
+
+/* Prompt library: an image-first archive that feels like a working studio. */
+.lib { max-width: 1320px; gap: 24px; }
+.lib__title { font-size: clamp(29px, 3.2vw, 40px); letter-spacing: -.065em; }
+.lib__sub { color: #A7A19C; }
+.lib__new-btn, .lib__empty-btn {
+  min-height: 44px; border-radius: 9px; color: #1D100A;
+  background: linear-gradient(135deg,#FFA17C,#FF7548);
+  box-shadow: 0 7px 24px rgba(255,91,38,.16), inset 0 1px 0 rgba(255,255,255,.3);
+  font-size: 13px; font-weight: 700;
+}
+.lib__new-btn:hover, .lib__empty-btn:hover { background: #FFB08F; }
+.lib__search { max-width: 520px; min-height: 46px; border-color: rgba(255,255,255,.09); border-radius: 10px; background: rgba(17,17,19,.88); }
+.lib__search:focus-within { border-color: rgba(255,137,95,.55); box-shadow: 0 0 0 3px rgba(255,107,53,.08); }
+.lib__search input { font-size: 13px; }
+.lib__count { color: #8E8781; }
+.lib-card { border-color: rgba(255,255,255,.08); border-radius: 14px; background: linear-gradient(145deg,rgba(25,25,28,.96),rgba(16,16,18,.98)); box-shadow: 0 12px 30px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.025); }
+.lib-card:hover { border-color: rgba(255,107,53,.29); transform: translateY(-4px); box-shadow: 0 19px 40px rgba(0,0,0,.25),0 8px 30px rgba(255,91,38,.045); }
+.lib-card::before { background: linear-gradient(90deg,transparent,#FF865C,transparent); }
+.lib-card__thumb { height: 180px; background: #181512; }
+.lib-card__thumb-empty { color: #FF946E; background: radial-gradient(ellipse at 50% 80%,rgba(255,107,53,.14),transparent 64%),linear-gradient(135deg,#241914,#131214); }
+.lib-card__badge { border-radius: 999px; padding: 4px 9px; backdrop-filter: blur(10px); }
+.lib-card__body { padding: 18px; gap: 8px; }
+.lib-card__title { font-size: 14px; }
+.lib-card__date { font-family: var(--font-ui); }
+.lib-card__preview { color: #9B948E; }
+.lib-card__actions { margin-top: 8px; }
+.lib-card__btn { border-radius: 8px; }
+.lib-card__btn--primary { color: #1D100A; background: linear-gradient(135deg,#FFA17C,#FF7548); font-weight: 700; }
+.lib-card__btn--primary:hover { background: #FFB08F; }
+.lib__empty { min-height: 390px; justify-content: center; border: 1px dashed rgba(255,255,255,.12); border-radius: 16px; background: radial-gradient(ellipse at 50% 100%,rgba(255,107,53,.06),transparent 60%); }
+.lib__empty-icon { color: #FF916B; filter: drop-shadow(0 7px 22px rgba(255,91,38,.2)); }
+.lib__empty-title { color: #F1EBE6; }
+.lib__empty-desc { color: #A19A94; }

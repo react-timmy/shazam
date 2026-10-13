@@ -21,6 +21,9 @@ function ProjectCard({ project, onDelete, onOpen, onCopy }) {
   return (
     <div className="dash-project">
       <div className="dash-project__header">
+        <div className="dash-project__cover" aria-hidden="true">
+          {project.thumbnail ? <img src={project.thumbnail} alt="" /> : <span>ϟ</span>}
+        </div>
         <div className="dash-project__meta-wrap">
           <h3 className="dash-project__name">{project.name}</h3>
           <div className="dash-project__meta">
@@ -72,7 +75,7 @@ function ProjectCard({ project, onDelete, onOpen, onCopy }) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { projects, deleteProject, getUsageThisMonth } = useProjects()
+  const { projects, deleteProject, getUsageToday, getUsageRemaining } = useProjects()
   const [copied, setCopied] = useState(false)
 
   const firstName = user?.name?.split(' ')[0] || 'there'
@@ -83,15 +86,15 @@ export default function Dashboard() {
     setTimeout(() => setCopied(false), 1500)
   }
 
-  const thisMonthCount = getUsageThisMonth()
+  const actionsToday = getUsageToday()
 
   const readyCount = projects.filter(p => p.prompt && p.prompt.length > 50).length
 
   const stats = [
     { label: 'Prompt Projects', value: projects.length.toString() },
-    { label: 'Prompts This Month', value: thisMonthCount.toString() },
+    { label: 'AI Actions Today', value: actionsToday.toString() },
+    { label: 'Actions Remaining', value: getUsageRemaining().toString() },
     { label: 'Ready Prompts', value: readyCount.toString() },
-    { label: 'Current Plan', value: user?.plan || 'FREE', accent: true },
   ]
 
   return (
@@ -100,8 +103,9 @@ export default function Dashboard() {
         {/* Welcome */}
         <div className="dash-welcome">
           <div>
+            <div className="dash-welcome__eyebrow"><span /> YOUR DESIGN WORKSPACE</div>
             <h1 className="dash-welcome__title">Welcome back, <span>{firstName}</span></h1>
-            <p className="dash-welcome__sub">Generate, refine, and organize master implementation prompts from design references.</p>
+            <p className="dash-welcome__sub">Turn your best references into build-ready blueprints. Your next great build starts here.</p>
           </div>
           <button className="dash-welcome__cta" onClick={() => navigate('/editor/new')}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -131,7 +135,7 @@ export default function Dashboard() {
           <div className="dash-projects">
             {projects.map(p => (
               <ProjectCard
-                key={p.id}
+              key={p._id || p.id}
                 project={p}
                 onOpen={(id) => navigate(`/editor/${id}`)}
                 onCopy={handleCopy}
@@ -147,7 +151,7 @@ export default function Dashboard() {
                 </svg>
               </div>
               <p className="dash-new-card__title">New Prompt</p>
-              <p className="dash-new-card__sub">Upload reference designs or screen recordings and generate a strict implementation prompt.</p>
+              <p className="dash-new-card__sub">Upload up to five reference images and generate a detailed implementation prompt.</p>
             </button>
           </div>
         </div>

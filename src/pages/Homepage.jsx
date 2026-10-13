@@ -26,7 +26,6 @@ function NavBar() {
         <div className="hp-nav__links">
           <a href="#how">How it works</a>
           <a href="#features">Features</a>
-          <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
         </div>
         <div className="hp-nav__right">
@@ -75,9 +74,6 @@ function NavBar() {
           </a>
           <a href="#features" onClick={() => setMobileOpen(false)}>
             Features
-          </a>
-          <a href="#pricing" onClick={() => setMobileOpen(false)}>
-            Pricing
           </a>
           <a href="#faq" onClick={() => setMobileOpen(false)}>
             FAQ
@@ -206,8 +202,8 @@ const FAQ_ITEMS = [
     a: "Use the Fix Prompt panel — describe what's off and get a targeted correction prompt. You can also switch to Edit mode and adjust the spec manually before pasting it into your tool.",
   },
   {
-    q: "Is there a free tier?",
-    a: "Yes. The free tier includes 20 prompts per month and 3 asset generations with no credit card required. You only need a free Gemini API key from Google AI Studio.",
+    q: "Does SHAZAM cost anything?",
+    a: "No. SHAZAM is a free tool. Each account can use up to 20 AI actions per day, and the allowance resets at midnight UTC.",
   },
 ];
 
@@ -305,58 +301,7 @@ const FEATURES = [
   },
 ];
 
-const PLANS = [
-  {
-    name: "Free",
-    price: "$0",
-    features: [
-      "20 prompts/month",
-      "3 asset generations",
-      "Design analysis",
-      "Basic prompts",
-    ],
-    cta: "Start Free",
-  },
-  {
-    name: "Starter",
-    price: "$7",
-    period: "mo",
-    features: [
-      "100 prompts/month",
-      "20 asset generations",
-      "All AI tools",
-      "Full asset library",
-      "Cancel anytime",
-    ],
-    cta: "Start Starter",
-  },
-  {
-    name: "Pro",
-    price: "$15",
-    period: "mo",
-    featured: true,
-    features: [
-      "Unlimited generations",
-      "Up to 10 images/project",
-      "Priority processing",
-      "100 asset generations",
-      "Early access features",
-    ],
-    cta: "Start Pro",
-  },
-  {
-    name: "Agency",
-    price: "$49",
-    period: "mo",
-    features: [
-      "Unlimited everything",
-      "Team seats (5 users)",
-      "White-label export",
-      "Dedicated support",
-    ],
-    cta: "Start Agency",
-  },
-];
+
 
 /* ══════════════════════════════════════════════
    PAGE
@@ -422,7 +367,42 @@ export default function Homepage() {
               </Link>
             )}
           </div>
-          <p className="hp-hero__note">Free tier · No credit card required</p>
+          <p className="hp-hero__note">Free to use · 20 AI actions each day</p>
+        </div>
+
+        <div className="hp-hero__product" aria-label="Preview of a design becoming an implementation blueprint">
+          <div className="product-demo__topbar">
+            <div className="product-demo__brand"><span className="product-demo__mark">ϟ</span> SHAZAM <span className="product-demo__slash">/</span> Untitled project</div>
+            <span className="product-demo__status"><i /> Blueprint ready</span>
+            <span className="product-demo__dots" aria-hidden="true">•••</span>
+          </div>
+          <div className="product-demo__body">
+            <div className="product-demo__reference">
+              <div className="product-demo__section-label"><span>01</span> REFERENCE</div>
+              <div className="demo-screen" aria-hidden="true">
+                <div className="demo-screen__nav"><b>form&amp;field</b><span>STUDIO&nbsp;&nbsp;&nbsp; JOURNAL&nbsp;&nbsp;&nbsp; ABOUT</span><i>↗</i></div>
+                <div className="demo-screen__hero"><span>OBJECTS FOR SLOW LIVING</span><strong>Make room<br />for better.</strong><small>Thoughtful essentials for everyday rituals.</small><em>DISCOVER THE COLLECTION&nbsp; ↗</em></div>
+                <div className="demo-screen__image"><div className="demo-vase demo-vase--one" /><div className="demo-vase demo-vase--two" /><div className="demo-screen__sun" /></div>
+                <div className="demo-screen__foot"><span>01 / 04</span><span>Designed to last. Made to be lived with.</span><span>← &nbsp; →</span></div>
+              </div>
+            </div>
+            <div className="product-demo__connector" aria-hidden="true"><span>✦</span></div>
+            <div className="product-demo__spec">
+              <div className="product-demo__section-label"><span>02</span> BUILD BLUEPRINT</div>
+              <div className="demo-spec">
+                <div className="demo-spec__heading"><span>LAYOUT &amp; HIERARCHY</span><b>01</b></div>
+                <div className="demo-spec__line demo-spec__line--long" />
+                <div className="demo-spec__line demo-spec__line--medium" />
+                <div className="demo-spec__line demo-spec__line--short" />
+                <div className="demo-spec__tokens"><span><i className="demo-swatch demo-swatch--cream" /> #F2EEE7</span><span><i className="demo-swatch demo-swatch--ink" /> #262522</span><span>4 TOKENS</span></div>
+                <div className="demo-spec__divider" />
+                <div className="demo-spec__heading"><span>COMPONENTS DETECTED</span><b>06</b></div>
+                <div className="demo-spec__chips"><span>Navigation</span><span>Hero</span><span>Product card</span></div>
+                <div className="demo-spec__ready"><span>✓</span> Ready for your AI coding tool</div>
+              </div>
+            </div>
+          </div>
+          <div className="product-demo__caption"><span>FROM SCREENSHOT</span><i /> <span>TO BUILD-READY SPEC</span><b>01:24</b></div>
         </div>
       </section>
 
@@ -527,66 +507,6 @@ export default function Homepage() {
                 </div>
                 <p className="hp-team-card__bio">{member.bio}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="hp-section" id="pricing">
-        <div className="hp-section__label">Pricing</div>
-        <h2 className="hp-section__h2">
-          Simple pricing.
-          <br />
-          Start free.
-        </h2>
-        <div className="hp-pricing">
-          {PLANS.map((p, i) => (
-            <div
-              key={i}
-              className={`hp-plan ${p.featured ? "hp-plan--featured" : ""}`}
-            >
-              {p.featured && (
-                <div className="hp-plan__badge">⚡ MOST POPULAR</div>
-              )}
-              <div className="hp-plan__name">{p.name}</div>
-              <div className="hp-plan__price">
-                {p.price}
-                {p.period && <span className="hp-plan__per">/{p.period}</span>}
-              </div>
-              <ul className="hp-plan__list">
-                {p.features.map((f, j) => (
-                  <li key={j}>
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path
-                        d="M1.5 6l3 3 6-6"
-                        stroke={
-                          p.featured ? "var(--lightning)" : "var(--orange)"
-                        }
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <Link
-                to="/signup"
-                className={`hp-plan__btn ${p.featured ? "hp-plan__btn--featured" : ""}`}
-              >
-                {p.featured && (
-                  <svg
-                    width="12"
-                    height="16"
-                    viewBox="0 0 12 16"
-                    fill="currentColor"
-                  >
-                    <path d="M9 0L2 8H6.5L1 16L10.5 6H6L9 0Z" />
-                  </svg>
-                )}
-                {p.cta}
-              </Link>
             </div>
           ))}
         </div>
