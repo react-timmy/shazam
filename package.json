@@ -19,7 +19,7 @@
     "express": "^4.21.2",
     "express-session": "^1.18.1",
     "lucide-react": "^1.7.0",
-    "mongodb": "^7.7.0",
+    "mongodb": "^6.20.0",
     "mongoose": "^8.9.5",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
