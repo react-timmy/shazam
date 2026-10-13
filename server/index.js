@@ -241,9 +241,9 @@ app.get('/auth/google', (req, res, next) => {
 
 app.get('/auth/google/callback', (req, res, next) => {
   if (!googleAuthConfigured) return res.status(503).json({ error: 'Google sign-in is not configured.' })
-  passport.authenticate('google', { failureRedirect: '/login?error=auth_failed' })(req, res, next)
+  passport.authenticate('google', { failureRedirect: new URL('/login?error=auth_failed', FRONTEND_URL).toString() })(req, res, next)
 }, (req, res) => {
-  res.redirect(FRONTEND_URL)
+  res.redirect(new URL('/dashboard', FRONTEND_URL).toString())
 })
 
 app.get('/auth/me', (req, res) => {
