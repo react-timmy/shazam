@@ -19,9 +19,32 @@ const app  = express()
 const PORT = process.env.PORT || 3001
 const NODE_ENV = process.env.NODE_ENV || 'development'
 const SESSION_SECRET = process.env.SESSION_SECRET
+const FRONTEND_URL = process.env.FRONTEND_URL || (NODE_ENV === 'production' ? null : 'http://localhost:5173')
+const renderBaseUrl = process.env.RENDER_EXTERNAL_URL?.replace(/\/$/, '')
+const defaultGoogleCallbackUrl = NODE_ENV === 'production'
+  ? (renderBaseUrl ? `${renderBaseUrl}/auth/google/callback` : null)
+  : 'http://localhost:3001/auth/google/callback'
+const configuredGoogleCallbackUrl = process.env.GOOGLE_CALLBACK_URL
+const configuredCallbackIsLocal = (() => {
+  try {
+    return ['localhost', '127.0.0.1', '::1'].includes(new URL(configuredGoogleCallbackUrl).hostname)
+  } catch {
+    return false
+  }
+})()
+const GOOGLE_CALLBACK_URL = NODE_ENV === 'production' && configuredCallbackIsLocal
+  ? defaultGoogleCallbackUrl
+  : configuredGoogleCallbackUrl || defaultGoogleCallbackUrl
+
+if (NODE_ENV === 'production' && configuredCallbackIsLocal) {
+  console.warn('[OAuth] Ignoring localhost GOOGLE_CALLBACK_URL in production; using the Render service URL.')
+}
 
 if (NODE_ENV === 'production' && !SESSION_SECRET) {
   throw new Error('SESSION_SECRET must be set in production.')
+}
+if (NODE_ENV === 'production' && !FRONTEND_URL) {
+  throw new Error('FRONTEND_URL must be set in production.')
 }
 
 // ── MongoDB ───────────────────────────────────────────────────────────────────
@@ -142,7 +165,7 @@ async function enforceDailyUsage(userId, res) {
 app.set('trust proxy', 1) // Required for Railway/Render proxy
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: FRONTEND_URL,
   credentials: true,
 }))
 app.use(express.json({ limit: '25mb' }))
@@ -166,13 +189,13 @@ app.use(passport.initialize())
 app.use(passport.session())
 
 // ── Passport Google OAuth ─────────────────────────────────────────────────────
-const googleAuthConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+const googleAuthConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && GOOGLE_CALLBACK_URL)
 if (googleAuthConfigured) {
   passport.use(new GoogleStrategy(
     {
       clientID:     process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL:  process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/auth/google/callback',
+      callbackURL:  GOOGLE_CALLBACK_URL,
       proxy:        true,
     },
     async (accessToken, refreshToken, profile, done) => {
@@ -220,7 +243,7 @@ app.get('/auth/google/callback', (req, res, next) => {
   if (!googleAuthConfigured) return res.status(503).json({ error: 'Google sign-in is not configured.' })
   passport.authenticate('google', { failureRedirect: '/login?error=auth_failed' })(req, res, next)
 }, (req, res) => {
-  res.redirect(process.env.FRONTEND_URL || 'http://localhost:5173')
+  res.redirect(FRONTEND_URL)
 })
 
 app.get('/auth/me', (req, res) => {

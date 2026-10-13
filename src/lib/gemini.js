@@ -21,7 +21,7 @@
  * @param {string} designType - optional design type hint
  * @returns {Promise<string>} - the full implementation spec
  */
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://shazam-2j07.onrender.com' : 'http://localhost:3001')
 
 export async function analyzeDesign(files, designType = '') {
   if (!files || files.length === 0) {

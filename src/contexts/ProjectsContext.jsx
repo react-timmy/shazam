@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext'
 
 const ProjectsContext = createContext(null)
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://shazam-2j07.onrender.com' : 'http://localhost:3001')
 
 export function ProjectsProvider({ children }) {
   const { user } = useAuth()
