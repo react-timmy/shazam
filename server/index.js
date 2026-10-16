@@ -19,7 +19,9 @@ const app  = express()
 const PORT = process.env.PORT || 3001
 const NODE_ENV = process.env.NODE_ENV || 'development'
 const SESSION_SECRET = process.env.SESSION_SECRET
-const FRONTEND_URL = process.env.FRONTEND_URL || (NODE_ENV === 'production' ? null : 'http://localhost:5173')
+const FRONTEND_URL = process.env.FRONTEND_URL || (NODE_ENV === 'production'
+  ? 'https://shazam-devtimmy.vercel.app'
+  : 'http://localhost:5173')
 const renderBaseUrl = process.env.RENDER_EXTERNAL_URL?.replace(/\/$/, '')
 const defaultGoogleCallbackUrl = NODE_ENV === 'production'
   ? (renderBaseUrl ? `${renderBaseUrl}/auth/google/callback` : null)
